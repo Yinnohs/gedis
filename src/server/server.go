@@ -84,5 +84,8 @@ func (s *Server) ConnectionHandler(conn net.Conn) {
 	peer := NewPeer(conn)
 	s.AddPeerChann <- peer
 	slog.Info("[INFO] New peer Connected", "RemoteAddress", conn.RemoteAddr())
-	go peer.MainLoop()
+	if err := peer.MainLoop(); err != nil {
+		slog.Error("[ERROR][CONNECTION] Peer data read error", " err ", err, " remoteAddress ", conn.RemoteAddr())
+		return
+	}
 }
