@@ -18,6 +18,7 @@ type Server struct {
 	Peers        map[*Peer]bool
 	AddPeerChann chan *Peer
 	QuitChn      chan struct{}
+	MsgChn       chan []byte
 }
 
 func NewServer(serverCfg ServerConfig) *Server {
@@ -31,6 +32,7 @@ func NewServer(serverCfg ServerConfig) *Server {
 		Peers:        make(map[*Peer]bool),
 		AddPeerChann: make(chan *Peer),
 		QuitChn:      make(chan struct{}),
+		MsgChn:       make(chan []byte),
 	}
 }
 
@@ -46,10 +48,9 @@ func (s *Server) Start() error {
 
 	//peer looper
 	go s.Peerloop()
-
-	//
 	slog.Info("[INFO][SUCCESS]: SERVER STARTED ON: ", "listenAddress", s.Config.ListenAddress)
 
+	//err handling when executing the main loop this is done to block some connections ;)
 	if err := s.MainLoop(); err != nil {
 		return err
 	}
@@ -60,6 +61,11 @@ func (s *Server) Start() error {
 func (s *Server) Peerloop() {
 	for {
 		select {
+		case rawMsg := <-s.MsgChn:
+			if err := s.HandleRawMessage(rawMsg); err != nil {
+				slog.Info("[INFO] Handle raw message error", " err ", err)
+			}
+
 		case <-s.QuitChn:
 			return
 		case peer := <-s.AddPeerChann:
@@ -81,11 +87,17 @@ func (s *Server) MainLoop() error {
 }
 
 func (s *Server) ConnectionHandler(conn net.Conn) {
-	peer := NewPeer(conn)
+	peer := NewPeer(conn, s.MsgChn)
 	s.AddPeerChann <- peer
 	slog.Info("[INFO] New peer Connected", "RemoteAddress", conn.RemoteAddr())
 	if err := peer.MainLoop(); err != nil {
 		slog.Error("[ERROR][CONNECTION] Peer data read error", " err ", err, " remoteAddress ", conn.RemoteAddr())
 		return
 	}
+}
+
+func (s *Server) HandleRawMessage(rawMessage []byte) error {
+	fmt.Println(string(rawMessage))
+
+	return nil
 }
