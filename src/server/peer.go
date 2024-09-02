@@ -1,6 +1,8 @@
 package server
 
-import "net"
+import (
+	"net"
+)
 
 type Peer struct {
 	conn net.Conn
@@ -12,8 +14,15 @@ func NewPeer(conn net.Conn) *Peer {
 	}
 }
 
-func (p *Peer) MainLoop() {
+func (p *Peer) MainLoop() error {
+	buff := make([]byte, 1024)
 	for {
+		dataBytes, err := p.conn.Read(buff)
+		if err != nil {
+			return err
+		}
+		msgBuffer := make([]byte, dataBytes)
+		copy(msgBuffer, buff[:dataBytes])
 
 	}
 }
